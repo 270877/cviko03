@@ -113,6 +113,20 @@ class RandomUniformInit(Initializer):
             Těžiště tvaru ``(k, n_příznaků)`` — hodnoty v rozsahu sloupců ``x``.
         """
         # assert: Ověřte, že x je 2D matice, k >= 2 a k nepřekračuje počet bodů
+        assert isinstance(x, np.ndarray) #"x musí být NumPy pole."
+        assert x.ndim == 2 #"x musí být 2D matice."
+        assert isinstance(k, int) and 2 <= k <= x.shape[0] #"k musí být >= 2 a nesmí překročit počet bodů."
+
+        n_samples, n_features = x.shape
+        centroids  = np.zeros((k, n_features))
+
+        for j in range(n_features):
+            col_min = x[:, j].min()
+            col_max = x[:, j].max()
+            centroids[:, j] = self._rng.uniform(low=col_min, high=col_max, size=k)
+
+        return centroids
+
         raise NotImplementedError(
             "Úkol: implementujte RandomUniformInit.initialize() \
             vygenerujte k těžišť náhodně z rovnoměrného rozdělení v rozsahu dat."
@@ -148,6 +162,14 @@ class ForgyInit(Initializer):
         """
         # assert: Ověřte, že x je 2D matice, k >= 2 a k nepřekračuje počet bodů
         # (nelze vybrat více různých bodů než jich existuje)
+        assert isinstance(x, np.ndarray)  # "x musí být NumPy pole."
+        assert x.ndim == 2  # "x musí být 2D matice."
+        assert isinstance(k, int) and 2 <= k <= x.shape[0]  # "k musí být >= 2 a nesmí překročit počet bodů."
+
+        n_samples = x.shape[0]
+        indices = self._rng.choice(n_samples, size=k, replace=False)
+        return x[indices].copy()
+
         raise NotImplementedError(
             "Úkol: implementujte ForgyInit.initialize() — vyberte k různých "
             "existujících bodů z x jako počáteční těžiště."
@@ -192,6 +214,39 @@ class KMeansPlusPlusInit(Initializer):
             Těžiště tvaru ``(k, n_příznaků)`` vybraná algoritmem k-means++.
         """
         # assert: Ověřte, že x je 2D matice, k >= 2 a k nepřekračuje počet bodů
+        assert isinstance(x, np.ndarray)  # "x musí být NumPy pole."
+        assert x.ndim == 2  # "x musí být 2D matice."
+        assert isinstance(k, int) and 2 <= k <= x.shape[0]  # "k musí být >= 2 a nesmí překročit počet bodů."
+
+        n_samples, n_features = x.shape
+        centroids = np.zeros((k, n_features))
+
+        # 1. Vyberte první těžiště náhodně z bodů x
+        first_idx = self._rng.choice(n_samples)
+        centroids[0] = x[first_idx]
+
+        # 2. Opakujte pro zbývající těžiště
+        for i in range(1, k):
+            # Vypočítejte čtvercovou vzdálenost každého bodu k nejbližšímu již zvolenému těžišti
+            distances_squared = np.full(n_samples, np.inf)
+            for j in range(i):
+                # Vzdálenost od aktuálního těžiště j kaskádovitě pro všechny body
+                dist = np.sum((x - centroids[j]) ** 2, axis=1)
+                distances_squared = np.minimum(distances_squared, dist)
+
+            # 3. Normalizujte na pravděpodobnosti
+            sum_d_sq = np.sum(distances_squared)
+            if sum_d_sq == 0:
+                probabilities = np.ones(n_samples) / n_samples
+            else:
+                probabilities = distances_squared / sum_d_sq
+
+            # 4. Vyberte další těžiště s pravděpodobností p
+            next_idx = self._rng.choice(n_samples, p=probabilities)
+            centroids[i] = x[next_idx]
+
+        return centroids
+
         raise NotImplementedError(
             "Úkol: implementujte KMeansPlusPlusInit.initialize() — algoritmus k-means++. "
             "Viz docstring pro popis kroků algoritmu."

@@ -29,6 +29,11 @@ import yaml
 
 from src import Initializer
 
+from src.initialization import (
+    RandomUniformInit,
+    ForgyInit,
+    KMeansPlusPlusInit,
+)
 
 @dataclass
 class CommonConfig:
@@ -143,10 +148,22 @@ def make_initializer(name: str, random_state: int | None = None) -> Initializer:
     Initializer
         Instance vybrané inicializační strategie.
     """
-    raise NotImplementedError(
-        "Úkol: implementujte funkci make_initializer — namapujte řetězcový "
-        "název strategie na instanci příslušné třídy Initializer."
-    )
+    registry = {
+        "random_uniform": RandomUniformInit,
+        "forgy": ForgyInit,
+        "kmeans++": KMeansPlusPlusInit,
+    }
+    if name not in registry:
+        raise ValueError(
+            f"Neznámá inicializační strategie: '{name}'. "
+            f"Dostupné možnosti jsou: {list(registry.keys())}"
+        )
+    return registry[name](random_state=random_state)
+
+    # raise NotImplementedError(
+    #     "Úkol: implementujte funkci make_initializer — namapujte řetězcový "
+    #     "název strategie na instanci příslušné třídy Initializer."
+    # )
 
 
 def validate_config(cfg: ExperimentConfig) -> None:
@@ -178,7 +195,30 @@ def validate_config(cfg: ExperimentConfig) -> None:
     ValueError
         Pokud kterákoli hodnota v konfiguraci nesplňuje uvedené podmínky.
     """
-    raise NotImplementedError(
-        "Úkol: implementujte validate_config — ověřte platnost konfigurace "
-        "(k >= 2, q > 1, platný název inicializátoru)."
-    )
+    allowed_initializers = {"random_uniform", "forgy", "kmeans++"}
+
+    if cfg.kmeans.k < 2:
+        raise ValueError(f"Počet shluků k v k-means musí být alespoň 2 (zadáno: {cfg.kmeans.k}).")
+
+    if cfg.fuzzy_cmeans.k < 2:
+        raise ValueError(f"Počet shluků k v fuzzy c-means musí být alespoň 2 (zadáno: {cfg.fuzzy_cmeans.k}).")
+
+    if cfg.fuzzy_cmeans.q <= 1.0:
+        raise ValueError(f"Parametr fuzifikace q musí být větší než 1 (zadáno: {cfg.fuzzy_cmeans.q}).")
+
+    if cfg.kmeans.initializer not in allowed_initializers:
+        raise ValueError(
+            f"Neplatný inicializátor pro k-means: '{cfg.kmeans.initializer}'. "
+            f"Povolené hodnoty jsou: {list(allowed_initializers)}"
+        )
+
+    if cfg.fuzzy_cmeans.initializer not in allowed_initializers:
+        raise ValueError(
+            f"Neplatný inicializátor pro fuzzy c-means: '{cfg.fuzzy_cmeans.initializer}'. "
+            f"Povolené hodnoty jsou: {list(allowed_initializers)}"
+        )
+
+    # raise NotImplementedError(
+    #     "Úkol: implementujte validate_config — ověřte platnost konfigurace "
+    #     "(k >= 2, q > 1, platný název inicializátoru)."
+    # )

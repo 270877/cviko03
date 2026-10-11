@@ -60,6 +60,10 @@ class Distance(ABC):
             Vzdálenost mezi ``point_a`` a ``point_b``.
         """
         # assert: Ověřte, že oba vstupy jsou 1D vektory stejné délky
+        assert isinstance(point_a, np.ndarray) and isinstance(point_b, np.ndarray)  # "Vstupy musí být NumPy pole."
+        assert point_a.ndim == 1 and point_b.ndim == 1  # "Oba vstupy musí být 1D vektory."
+        assert point_a.shape == point_b.shape #"Vstupy musí mít stejnou délku."
+
         raise NotImplementedError(
             "Úkol: implementujte calculate() — zkopírujte řešení z Cvičení 01."
         )
@@ -82,6 +86,9 @@ class Distance(ABC):
             Matice vzdáleností tvaru ``(n_bodů, n_bodů)``.
         """
         # assert: Ověřte, že data jsou 2D matice s alespoň 2 body
+        assert isinstance(data, np.ndarray)
+        assert data.ndim == 2
+
         n: int = data.shape[0]
         matrix: np.ndarray = np.zeros((n, n), dtype=float)
         for i in range(n):
@@ -122,6 +129,13 @@ class EuclideanDistance(Distance):
             Euklidovská vzdálenost.
         """
         # assert: Ověřte, že oba vstupy jsou 1D vektory stejné délky
+        assert isinstance(point_a, np.ndarray) and isinstance(point_b, np.ndarray) # "Vstupy musí být NumPy pole."
+        assert point_a.ndim == 1 and point_b.ndim == 1 #"Oba vstupy musí být 1D vektory."
+        assert point_a.shape == point_b.shape #"Vstupy musí mít stejnou délku."
+
+        solution = float(np.sqrt(np.sum((point_a - point_b) ** 2)))
+        return solution
+
         raise NotImplementedError(
             "Úkol: implementujte EuclideanDistance.calculate() — zkopírujte z Cvičení 01."
         )
@@ -157,6 +171,13 @@ class ManhattanDistance(Distance):
             Manhattanská vzdálenost.
         """
         # assert: Ověřte, že oba vstupy jsou 1D vektory stejné délky
+        assert isinstance(point_a, np.ndarray) and isinstance(point_b, np.ndarray)  # "Vstupy musí být NumPy pole."
+        assert point_a.ndim == 1 and point_b.ndim == 1  # "Oba vstupy musí být 1D vektory."
+        assert point_a.shape == point_b.shape #"Vstupy musí mít stejnou délku."
+
+        solution = float(np.sum(abs(point_a - point_b)))
+        return solution
+
         raise NotImplementedError(
             "Úkol: implementujte ManhattanDistance.calculate() — zkopírujte z Cvičení 01."
         )
@@ -193,6 +214,19 @@ class CosineCoeficient(Distance):
             Kosinová vzdálenost v rozsahu [0, 2].
         """
         # assert: Ověřte, že oba vstupy jsou 1D vektory stejné délky
+        assert isinstance(point_a, np.ndarray) and isinstance(point_b, np.ndarray)  # "Vstupy musí být NumPy pole."
+        assert point_a.ndim == 1 and point_b.ndim == 1  # "Oba vstupy musí být 1D vektory."
+        assert point_a.shape == point_b.shape #"Vstupy musí mít stejnou délku."
+
+        dot_solution = np.dot(point_a, point_b)
+        norm_a = np.linalg.norm(point_a)
+        norm_b = np.linalg.norm(point_b)
+
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        cosine_sim = dot_solution / (norm_a * norm_b)
+        return float(cosine_sim)
+
         raise NotImplementedError(
             "Úkol: implementujte CosineCoeficient.calculate() — zkopírujte z Cvičení 01."
         )

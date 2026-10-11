@@ -109,6 +109,20 @@ class IterativeClustering(ABC):
         """
         # assert: Ověřte, že x a centroids jsou 2D matice se stejným počtem příznaků
         # a centroids má self.k řádků
+        assert isinstance(x, np.ndarray) and isinstance(centroids, np.ndarray)
+        assert x.ndim == 2 and centroids.ndim == 2
+        assert x.shape[1] == centroids.shape[1] #"Vstupy musí mít stejný počet příznaků."
+        assert centroids.shape[0] == self.k #"Počet řádků centroids musí odpovídat k."
+
+        n_samples = x.shape[0]
+        distances_matrix = np.zeros((n_samples, self.k), dtype=float)
+
+        for i in range(n_samples):
+            for j in range(self.k):
+                distances_matrix[i, j] = self.distance.calculate(x[i], centroids[j])
+
+        return distances_matrix
+
         raise NotImplementedError(
             "Úkol: implementujte _distances_to_centroids() — vytvořte matici "
             "vzdáleností tvaru (n_bodů, k) voláním self.distance.calculate."
@@ -146,6 +160,12 @@ class IterativeClustering(ABC):
             ``True`` pokud algoritmus konvergoval, jinak ``False``.
         """
         # assert: Ověřte, že obě matice těžišť mají stejný tvar
+        assert isinstance(old_centroids, np.ndarray) and isinstance(new_centroids, np.ndarray)
+        assert old_centroids.shape == new_centroids.shape #"Matice těžišť musí mít stejný tvar."
+
+        shift = np.linalg.norm(old_centroids - new_centroids)
+        return shift < self._EPSILON
+
         raise NotImplementedError(
             "Úkol: implementujte _has_converged() — porovnejte posun těžišť "
             "s prahem self._EPSILON pomocí np.linalg.norm."
@@ -199,6 +219,28 @@ class IterativeClustering(ABC):
             Instance ``self`` po natrénování (pro řetězení metod).
         """
         # assert: Ověřte, že x je 2D matice a obsahuje alespoň k bodů
+        assert isinstance(x, np.ndarray) #"x musí být NumPy pole."
+        assert x.ndim == 2 #"x musí být 2D matice."
+        assert x.shape[0] >= self.k #"Počet bodů v x nesmí být menší než k."
+
+        # 1. Inicializujte těžiště
+        self.centroids_ = self.initializer.initialize(x, self.k)
+        # 2. Opakujte až max_iter iterací
+        for _ in range(self.max_iter):
+            # a. Přiřaďte body k těžištím (variační bod subclassy)
+            assignment = self._update_assignment(x, self.centroids_)
+            # b. Uložte stará těžiště pro test konvergence
+            old_centroids = self.centroids_.copy()
+            # c. Přepočítejte těžiště z nového přiřazení
+            new_centroids = self._update_centroids(x, assignment)
+            # d. Uložte výsledky a zkontrolujte konvergenci
+            self.assignment_ = assignment
+            self.centroids_ = new_centroids
+
+            if self._has_converged(old_centroids, new_centroids):
+                break
+        return self
+
         raise NotImplementedError(
             "Úkol: implementujte fit() — iterační smyčku inicializace → přiřazení "
             "→ přepočet těžišť → konvergence. Viz docstring pro pořadí kroků."

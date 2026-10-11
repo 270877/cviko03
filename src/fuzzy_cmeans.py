@@ -69,6 +69,7 @@ class FuzzyCMeans(IterativeClustering):
             Maximální počet iterací.
         """
         # assert: Ověřte, že parametr fuzifikace q je větší než 1
+        assert isinstance(q, (int, float)) and q > 1.0 #"Parametr fuzifikace q musí být větší než 1."
         super().__init__(k, distance, initializer, max_iter)
         self.q: float = q
 
@@ -110,6 +111,30 @@ class FuzzyCMeans(IterativeClustering):
             Matice členství tvaru ``(n_bodů, k)``, každý řádek sumuje na 1.
         """
         # assert: Ověřte, že x a centroids jsou 2D matice se stejným počtem příznaků
+        assert isinstance(x, np.ndarray) and isinstance(centroids, np.ndarray)
+        assert x.ndim == 2 and centroids.ndim == 2
+        assert x.shape[1] == centroids.shape[1] #"Vstupy musí mít stejný počet příznaků."
+
+        n_samples = x.shape[0]
+        distances = self._distances_to_centroids(x, centroids)
+        u = np.zeros((n_samples, self.k), dtype=float)
+        exponent = 2.0 / (self.q - 1.0)
+
+        for i in range(n_samples):
+            # Kontrola, zda některá vzdálenost je 0 (bod leží přesně na těžišti)
+            zero_mask = (distances[i] == 0)
+            if np.any(zero_mask):
+                # Bod leží na těžišti (případně na více těžištích) -> plné členství
+                u[i, zero_mask] = 1.0 / np.sum(zero_mask)
+            else:
+                # Standardní FCM vzorec pre výpočet matice členstva
+                # Pro každý shluk c: sum_j (d_ic / d_ij)^(2 / (q - 1))
+                for c in range(self.k):
+                    ratios = distances[i, c] / distances[i]
+                    denominator = np.sum(ratios ** exponent)
+                    u[i, c] = 1.0 / denominator
+        return u
+
         raise NotImplementedError(
             "Úkol: implementujte FuzzyCMeans._update_assignment() — matici "
             "členství FCM. Viz docstring pro vzorec a ošetření dělení nulou."
@@ -146,6 +171,34 @@ class FuzzyCMeans(IterativeClustering):
             Nová těžiště tvaru ``(k, n_příznaků)``.
         """
         # assert: Ověřte, že assignment (matice členství U) je 2D pole tvaru (n_bodů, k)
+        assert isinstance(x, np.ndarray) #"x musí být NumPy pole."
+        assert isinstance(assignment, np.ndarray) #"assignment musí být NumPy pole."
+        assert x.ndim == 2 #"x musí být 2D matice."
+        assert assignment.ndim == 2 #"assignment (matice členství U) musí být 2D matice."
+        assert assignment.shape[0] == x.shape[0] #"Počet řádků assignment musí odpovídat počtu bodů v x."
+        assert assignment.shape[1] == self.k #"Počet sloupců assignment musí odpovídat k."
+
+        n_features = x.shape[1]
+        new_centroids = np.zeros((self.k, n_features), dtype=float)
+
+        # Váhy umocněné na q: U_{ic}^q
+        u_q = assignment ** self.q
+
+        for c in range(self.k):
+            weights = u_q[:, c]  # tvar (n_bodů,)
+            weight_sum = np.sum(weights)
+
+            if weight_sum > 0:
+                # Vážený průměr: součet(weights[:, None] * x, axis=0) / součet(weights)
+                new_centroids[c] = np.sum(weights[:, None] * x, axis=0) / weight_sum
+            else:
+                # Ošetření nulového součtu vah (zachování starého těžiště)
+                if self.centroids_ is not None:
+                    new_centroids[c] = self.centroids_[c]
+                else:
+                    new_centroids[c] = np.zeros(n_features)
+        return new_centroids
+
         raise NotImplementedError(
             "Úkol: implementujte FuzzyCMeans._update_centroids() — vážený průměr "
             "bodů s vahami z matice členství umocněné na self.q."
@@ -172,6 +225,12 @@ class FuzzyCMeans(IterativeClustering):
             Pokud ``fit`` nebyl dosud volán.
         """
         # assert: Ověřte, že fit() byl zavolán a self.assignment_ je 2D matice členství
+        assert self.assignment_ is not None #"Metoda fit() nebyla dosud volána."
+        assert isinstance(self.assignment_, np.ndarray) and self.assignment_.ndim == 2 #self.assignment_ musí být 2D matice členství."
+
+        # Vrátí index maximálního členství pro každý bod podél osy shluků (axis=1)
+        return np.argmax(self.assignment_, axis=1)
+
         raise NotImplementedError(
             "Úkol: implementujte FuzzyCMeans.predict() — vraťte argmax "
             "matice členství self.assignment_ podél osy shluků (axis=1)."
